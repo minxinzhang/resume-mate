@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ basics.name }} - Resume</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>{{ basics.name }}</h1>
+            <p class="subtitle">{{ basics.label }}</p>
+            <div class="contact-info">
+                <span>{{ basics.email }}</span>
+                {% if basics.phone %} | <span>{{ basics.phone }}</span>{% endif %}
+                {% if basics.url %} | <span><a href="{{ basics.url }}">{{ basics.url }}</a></span>{% endif %}
+                {% if basics.location %} | <span>{{ basics.location.city }}, {{ basics.location.region }}</span>{% endif %}
+            </div>
+            {% if basics.profiles %}
+            <div class="profiles">
+                {% for profile in basics.profiles %}
+                <span><a href="{{ profile.url }}">{{ profile.network }}</a></span>
+                {% if not loop.last %} | {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+        </header>
+
+        <!-- Summary -->
+        {% if basics.summary %}
+        <section class="summary">
+            <h2>Summary</h2>
+            <p>{{ basics.summary }}</p>
+        </section>
+        {% endif %}
+
+        <!-- Work Experience -->
+        {% if work %}
+        <section class="work">
+            <h2>Experience</h2>
+            {% for job in work %}
+            <div class="job">
+                <div class="job-header">
+                    <h3>{{ job.name }}</h3>
+                    <span class="date">{{ job.start_date }} - {{ job.end_date if job.end_date else 'Present' }}</span>
+                </div>
+                <p class="job-title">{{ job.position }}</p>
+                {% if job.summary %}<p class="job-summary">{{ job.summary }}</p>{% endif %}
+                {% if job.highlights %}
+                <ul>
+                    {% for highlight in job.highlights %}
+                    <li>{{ highlight }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {% if job.tech_stack %}
+                <p class="tech-stack"><strong>Tech:</strong> {{ job.tech_stack|join(', ') }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        <!-- Projects -->
+        {% if projects %}
+        <section class="projects">
+            <h2>Projects</h2>
+            {% for project in projects %}
+            <div class="project">
+                <div class="project-header">
+                    <h3>{{ project.name }}</h3>
+                    <span class="date">{{ project.start_date }} {% if project.end_date %} - {{ project.end_date }}{% endif %}</span>
+                </div>
+                {% if project.description %}<p>{{ project.description }}</p>{% endif %}
+                {% if project.highlights %}
+                <ul>
+                    {% for highlight in project.highlights %}
+                    <li>{{ highlight }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {% if project.tech_stack %}
+                <p class="tech-stack"><strong>Tech:</strong> {{ project.tech_stack|join(', ') }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        <!-- Education -->
+        {% if education %}
+        <section class="education">
+            <h2>Education</h2>
+            {% for edu in education %}
+            <div class="edu">
+                <div class="edu-header">
+                    <h3>{{ edu.institution }}</h3>
+                    <span class="date">{{ edu.start_date }} - {{ edu.end_date }}</span>
+                </div>
+                <p>{{ edu.study_type }} in {{ edu.area }}</p>
+            </div>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        <!-- Skills -->
+        {% if skills %}
+        <section class="skills">
+            <h2>Skills</h2>
+            <ul>
+            {% for skill in skills %}
+                <li><strong>{{ skill.name }}:</strong> {{ skill.keywords|join(', ') }}</li>
+            {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+    </div>
+</body>
+</html>

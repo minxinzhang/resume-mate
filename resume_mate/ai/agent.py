@@ -1,0 +1,231 @@
+import json
+from typing import Any, cast
+
+import litellm
+from litellm import Choices, ModelResponse
+from rich.console import Console
+
+from resume_mate.core.models import MasterProfile
+
+console = Console()
+
+
+class ResumeAgent:
+    def __init__(self, model_name: str = "gpt-4o", api_key: str | None = None, api_base: str | None = None):
+        self.model_name = model_name
+        self.api_key = api_key
+        self.api_base = api_base
+
+    def _get_completion(self, messages: list[dict[str, str]], json_mode: bool = True) -> Any:
+        """Helper to call LiteLLM and parse JSON response."""
+        try:
+            response = litellm.completion(
+                model=self.model_name,
+                messages=messages,
+                api_key=self.api_key,
+                api_base=self.api_base,
+                response_format={"type": "json_object"} if json_mode else None,
+                stream=False,
+            )
+            # Cast to ModelResponse to satisfy type checker
+            resp = cast(ModelResponse, response)
+
+            if not resp.choices:
+                raise ValueError("LLM returned no choices")
+
+            # Cast choice to Choices to avoid StreamingChoices warnings
+            choice = cast(Choices, resp.choices[0])
+            content = choice.message.content
+
+            if content is None:
+                raise ValueError("LLM returned no content")
+
+            if json_mode:
+                return json.loads(content)
+            return content
+        except Exception as e:
+            console.print(f"[bold red]Error calling LLM:[/bold red] {e}")
+            raise
+
+    def analyze_job_description(self, jd_text: str) -> dict[str, Any]:
+        """
+        Analyzes the JD to extract keywords, required skills, and key themes.
+        """
+        prompt = f"""
+        You are an expert technical recruiter and resume strategist.
+        Analyze the following job description and extract:
+        1. Key technical skills required.
+        2. Soft skills and cultural fit indicators.
+        3. The core mission or primary objective of the role.
+        4. Important keywords for ATS optimization.
+
+        Job Description:
+        {jd_text}
+
+        Return the result as a valid JSON object with keys: 
+        "technical_skills" (list of strings), 
+        "soft_skills" (list of strings), 
+        "role_mission" (string), 
+        "keywords" (list of strings).
+        """
+        
+        return self._get_completion(
+            messages=[{"role": "user", "content": prompt}],
+            json_mode=True
+        )
+
+    def bootstrap_profile(self, raw_text: str) -> MasterProfile:
+        """
+        Extracts candidate information from raw text (e.g., an old resume) 
+        and maps it to the MasterProfile schema.
+        """
+        schema = MasterProfile.model_json_schema()
+        
+        prompt = f"""
+        You are an expert resume data extractor. 
+        Your task is to parse the following raw text from an old resume and convert it into a valid JSON object 
+        that conforms to the MasterProfile schema provided below.
+
+        Raw Resume Text:
+        {raw_text}
+
+        MasterProfile JSON Schema:
+        {json.dumps(schema, indent=2)}
+
+        Instructions:
+        1. Extract all personal information, work experience, projects, education, and skills.
+        2. Map the extracted data to the corresponding fields in the schema.
+        3. Ensure that date formats are consistent (e.g., YYYY-MM-DD or YYYY-MM).
+        4. If a field is not found in the text, omit it or use null/empty list as per the schema requirements.
+        5. For `highlights`, break down descriptions into clear bullet points.
+        6. For `techStack`, extract relevant technologies and tools mentioned.
+        
+        Return the result as a valid JSON object.
+        """
+
+        profile_data = self._get_completion(
+            messages=[{"role": "system", "content": "You are a helpful assistant that extracts resume data into structured JSON."},
+                      {"role": "user", "content": prompt}],
+            json_mode=True
+        )
+
+        return MasterProfile(**profile_data)
+
+    def extract_entity(self, text: str, entity_type: str) -> dict[str, Any]:
+        """
+        Extracts a specific entity (WorkExperience, Project, etc.) from natural language text.
+        """
+        from resume_mate.core.models import WorkExperience, Project, Education, Skill
+        
+        type_map = {
+            "work": WorkExperience,
+            "project": Project,
+            "education": Education,
+            "skill": Skill
+        }
+        
+        if entity_type not in type_map:
+            raise ValueError(f"Unsupported entity type: {entity_type}")
+            
+        model_class = type_map[entity_type]
+        schema = model_class.model_json_schema()
+        
+        prompt = f"""
+        You are an expert resume data extractor. 
+        Your task is to parse the following text and convert it into a valid JSON object 
+        that conforms to the {entity_type} schema provided below.
+
+        Input Text:
+        {text}
+
+        JSON Schema:
+        {json.dumps(schema, indent=2)}
+
+        Instructions:
+        1. Extract all relevant information and map it to the schema.
+        2. Ensure consistent formatting.
+        3. Return ONLY the JSON object.
+        """
+        
+        return self._get_completion(
+            messages=[{"role": "system", "content": f"You extract {entity_type} data into structured JSON."},
+                      {"role": "user", "content": prompt}],
+            json_mode=True
+        )
+
+    def suggest_improvements(self, profile: MasterProfile) -> dict[str, Any]:
+        """
+        Analyzes the Master Profile and suggests improvements or identifies gaps.
+        """
+        profile_dict = profile.model_dump(mode="json")
+        
+        prompt = f"""
+        You are a senior resume consultant. 
+        Analyze the following candidate Master Profile and identify:
+        1. Gaps in information (e.g., missing tech stacks, brief summaries).
+        2. Suggestions for improving bullet points (making them more result-oriented).
+        3. Potential skills to add based on the candidate's experience.
+        4. Overall professional impression.
+
+        Candidate Master Profile:
+        {json.dumps(profile_dict, indent=2)}
+
+        Return the result as a valid JSON object with keys:
+        "gaps" (list of strings),
+        "suggestions" (list of strings),
+        "recommended_skills" (list of strings),
+        "overall_critique" (string).
+        """
+        
+        return self._get_completion(
+            messages=[{"role": "system", "content": "You are a professional resume critic."},
+                      {"role": "user", "content": prompt}],
+            json_mode=True
+        )
+
+    def tailor_profile(self, profile: MasterProfile, jd_analysis: dict[str, Any]) -> MasterProfile:
+        """
+        Tailors the Master Profile to fit the analyzed job description.
+        Currently focuses on rewriting the summary and filtering/rewriting work experience.
+        """
+        
+        # 1. Tailor the Summary (Basics)
+        # 2. Tailor Work Experience (Rewriting highlights)
+        
+        # For this implementation, we will perform a holistic tailoring of the work experience.
+        # We'll ask the LLM to select the most relevant work entries and rewrite their highlights.
+        
+        # Convert profile to dict for the prompt (excluding some fields to save tokens if needed)
+        profile_dict = profile.model_dump(mode="json")
+        
+        prompt = f"""
+        You are a professional resume writer. Your goal is to tailor a candidate's profile to a specific job description.
+
+        Job Analysis:
+        {json.dumps(jd_analysis, indent=2)}
+
+        Candidate Master Profile:
+        {json.dumps(profile_dict, indent=2)}
+
+        Instructions:
+        1. **Summary:** Rewrite the candidate's summary (`basics.summary`) to align with the Role Mission and Keywords. Keep it professional and under 4 lines.
+        2. **Work Experience:** 
+           - Select the most relevant work experiences.
+           - For each selected experience, rewrite the `highlights` to emphasize skills and achievements relevant to the JD.
+           - Use the keywords from the analysis.
+           - Keep the original `company`, `position`, `startDate`, `endDate`.
+           - You may reorder the highlights.
+        3. **Skills:** Select and prioritize the `skills` list to match the JD's technical requirements.
+
+        Return the tailored profile as a JSON object matching the structure of the input Master Profile. 
+        ENSURE all fields required by the schema (like 'basics', 'work', 'education', 'skills') are present and correctly formatted.
+        """
+
+        tailored_data = self._get_completion(
+            messages=[{"role": "user", "content": prompt}],
+            json_mode=True
+        )
+        
+        # Validate and return as MasterProfile object
+        # We might need to handle potential schema mismatches, but Pydantic is good at that.
+        return MasterProfile(**tailored_data)

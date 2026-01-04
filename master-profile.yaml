@@ -1,0 +1,41 @@
+basics:
+  name: "John Doe"
+  label: "Software Engineer"
+  email: "john@example.com"
+  phone: "123-456-7890"
+  url: "https://johndoe.com"
+  summary: "A passionate software engineer."
+  location:
+    city: "San Francisco"
+    region: "CA"
+  profiles:
+    - network: "GitHub"
+      username: "johndoe"
+      url: "https://github.com/johndoe"
+
+work:
+  - name: "Tech Corp"
+    position: "Senior Developer"
+    startDate: "2020-01-01"
+    summary: "Led the development of a high-traffic web application."
+    highlights:
+      - "Improved performance by 40%"
+      - "Mentored 5 junior developers"
+    techStack: ["Python", "React", "AWS"]
+
+projects:
+  - name: "Resume Mate"
+    description: "An AI-powered resume tailor."
+    techStack: ["Python", "Pydantic", "LiteLLM"]
+    startDate: "2023-10-01"
+
+education:
+  - institution: "University of Technology"
+    area: "Computer Science"
+    studyType: "Bachelor"
+    startDate: "2015-09-01"
+    endDate: "2019-06-01"
+
+skills:
+  - name: "Programming Languages"
+    keywords: ["Python", "JavaScript", "Go"]

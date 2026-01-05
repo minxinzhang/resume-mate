@@ -36,3 +36,7 @@ tmp/
 # personal files
 work_logs/
 work.md
+resources/
+dev-docs/
+history_files/
+martin-profile.yaml

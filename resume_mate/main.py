@@ -228,7 +228,7 @@ def bootstrap(
 
 @app.command()
 def update(
-    new_resume_file: Path = typer.Argument(..., help="Path to the new resume file (PDF, Docx, or TXT) to merge"),
+    input_path: Path = typer.Argument(..., help="Path to the new resume file (PDF, Docx, TXT) or directory to merge"),
     profile_file: Path = typer.Option(Path("master-profile.yaml"), "--profile", "-p", help="Path to the existing master profile YAML"),
     model: str = typer.Option("gpt-5.2", "--model", "-m", help="LLM model to use"),
     api_key: str = typer.Option(None, "--api-key", "-k", help="API Key for the LLM provider"),
@@ -236,10 +236,10 @@ def update(
     vision: bool = typer.Option(True, "--vision/--no-vision", help="Use vision for PDFs (better layout understanding)"),
 ):
     """
-    Update an existing master profile by merging content from a new resume file.
+    Update an existing master profile by merging content from a new resume file or all files in a directory.
     """
-    if not new_resume_file.exists():
-        console.print(f"[error]New resume file {new_resume_file} not found.[/error]")
+    if not input_path.exists():
+        console.print(f"[error]Input path {input_path} not found.[/error]")
         raise typer.Exit(code=1)
 
     if not profile_file.exists():
@@ -255,44 +255,65 @@ def update(
     except Exception as e:
         console.print(f"[error]Failed to validate existing profile: {e}[/error]")
         raise typer.Exit(code=1)
+    
+    # Keep a copy of original for diffing
+    original_yaml = yaml.dump(current_profile.model_dump(mode="json", exclude_none=True, by_alias=True), sort_keys=False)
 
-    # 2. Extract Text from New File
-    console.print(f"[info]Extracting text from {new_resume_file}...[/info]")
-    try:
-        raw_text = extract_text_from_file(new_resume_file)
-    except Exception as e:
-        console.print(f"[error]Failed to extract text: {e}[/error]")
-        raise typer.Exit(code=1)
+    # 2. Determine Files to Process
+    files_to_process = []
+    if input_path.is_dir():
+        for ext in ["*.pdf", "*.docx", "*.txt", "*.md"]:
+            files_to_process.extend(input_path.glob(ext))
+        files_to_process = sorted(list(set(files_to_process)))
+        if not files_to_process:
+             console.print(f"[warning]No supported files found in {input_path}[/warning]")
+             raise typer.Exit()
+        console.print(f"[info]Found {len(files_to_process)} files to process in {input_path}[/info]")
+    else:
+        files_to_process = [input_path]
 
-    images = None
-    if new_resume_file.suffix.lower() == ".pdf" and vision:
-        try:
-            from resume_mate.utils.vision import pdf_to_base64_images
-            with console.status("[bold green]Converting PDF to images for Vision analysis...[/bold green]"):
-                images = pdf_to_base64_images(new_resume_file)
-            console.print(f"[info]Generated {len(images)} images from PDF.[/info]")
-        except ImportError:
-            console.print("[warning]PyMuPDF not installed. Skipping vision.[/warning]")
-        except Exception as e:
-            console.print(f"[warning]Failed to convert PDF to images: {e}. Falling back to text-only.[/warning]")
-
-    # 3. Initialize Agent & Merge
+    # 3. Initialize Agent
     agent = ResumeAgent(model_name=model, api_key=api_key, api_base=api_base)
     
+    # 4. Iterate and Merge
+    working_profile = current_profile
+    
     try:
-        with console.status("[bold green]Merging new data into Master Profile...[/bold green]"):
-            merged_profile = agent.merge_profile(current_profile, raw_text, images=images)
+        for file_path in files_to_process:
+            console.print(f"\n[bold blue]Processing {file_path.name}...[/bold blue]")
+            
+            # Extract Text
+            try:
+                raw_text = extract_text_from_file(file_path)
+            except Exception as e:
+                console.print(f"[error]Failed to extract text from {file_path.name}: {e}. Skipping.[/error]")
+                continue
+
+            # Vision Analysis (only for PDFs if enabled)
+            images = None
+            if file_path.suffix.lower() == ".pdf" and vision:
+                try:
+                    from resume_mate.utils.vision import pdf_to_base64_images
+                    with console.status(f"[bold green]Converting {file_path.name} to images...[/bold green]"):
+                        images = pdf_to_base64_images(file_path)
+                except ImportError:
+                    console.print("[warning]PyMuPDF not installed. Skipping vision.[/warning]")
+                except Exception as e:
+                    console.print(f"[warning]Failed to convert PDF to images: {e}. Falling back to text-only.[/warning]")
+
+            # Merge
+            with console.status(f"[bold green]Merging {file_path.name} into Master Profile...[/bold green]"):
+                working_profile = agent.merge_profile(working_profile, raw_text, images=images)
         
-        # 4. Show Diff
-        old_yaml = yaml.dump(current_profile.model_dump(mode="json", exclude_none=True, by_alias=True), sort_keys=False)
-        new_yaml = yaml.dump(merged_profile.model_dump(mode="json", exclude_none=True, by_alias=True), sort_keys=False)
+        # 5. Show Diff
+        new_yaml = yaml.dump(working_profile.model_dump(mode="json", exclude_none=True, by_alias=True), sort_keys=False)
         
-        console.print("\n[bold cyan]=== Proposed Changes ===[/bold cyan]\n")
-        print_yaml_diff(old_yaml, new_yaml)
+        console.print("\n[bold cyan]=== Proposed Changes (Cumulative) ===[/bold cyan]\n")
+        print_yaml_diff(original_yaml, new_yaml)
         
-        # 5. Confirm & Save
+        # 6. Confirm & Save
         if Confirm.ask("\nDo you want to apply these changes?"):
-            write_yaml(merged_profile.model_dump(mode="json", exclude_none=True, by_alias=True), profile_file)
+            write_yaml(working_profile.model_dump(mode="json", exclude_none=True, by_alias=True), profile_file)
             console.print(f"[success]Profile updated successfully: {profile_file}[/success]")
         else:
             console.print("[warning]Update cancelled. No changes made.[/warning]")

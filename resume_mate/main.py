@@ -5,8 +5,12 @@ import yaml
 import webbrowser
 from rich.prompt import Confirm
 import os
+from dotenv import load_dotenv
 
-from resume_mate.utils.console import console
+# Load environment variables from .env file
+load_dotenv()
+
+from resume_mate.utils.console import console, print_yaml_diff
 from resume_mate.utils.file_io import extract_text_from_file, write_yaml
 from resume_mate.core.models import MasterProfile
 from resume_mate.renderer.template import TemplateRenderer
@@ -170,9 +174,10 @@ def preview(
 def bootstrap(
     input_file: Path = typer.Argument(..., help="Path to the old resume file (PDF, Docx, or TXT)"),
     output_file: Path = typer.Option(Path("master-profile.yaml"), "--output", "-o", help="Path to save the generated master profile YAML"),
-    model: str = typer.Option("gpt-4o", "--model", "-m", help="LLM model to use"),
+    model: str = typer.Option("gpt-5.2", "--model", "-m", help="LLM model to use"),
     api_key: str = typer.Option(None, "--api-key", "-k", help="API Key for the LLM provider"),
     api_base: str = typer.Option(None, "--api-base", "-b", help="API Base URL"),
+    vision: bool = typer.Option(True, "--vision/--no-vision", help="Use vision for PDFs (better layout understanding)"),
 ):
     """
     Bootstrap a master-profile.yaml from an existing resume file using AI.
@@ -193,15 +198,104 @@ def bootstrap(
         console.print(f"[error]Failed to extract text: {e}[/error]")
         raise typer.Exit(code=1)
 
+    images = None
+    if input_file.suffix.lower() == ".pdf" and vision:
+        try:
+            from resume_mate.utils.vision import pdf_to_base64_images
+            with console.status("[bold green]Converting PDF to images for Vision analysis...[/bold green]"):
+                images = pdf_to_base64_images(input_file)
+            console.print(f"[info]Generated {len(images)} images from PDF.[/info]")
+        except ImportError:
+            console.print("[warning]PyMuPDF not installed. Skipping vision.[/warning]")
+        except Exception as e:
+            console.print(f"[warning]Failed to convert PDF to images: {e}. Falling back to text-only.[/warning]")
+
     agent = ResumeAgent(model_name=model, api_key=api_key, api_base=api_base)
     
     try:
         with console.status("[bold green]Analyzing and converting resume to Master Profile...[/bold green]"):
-            profile = agent.bootstrap_profile(raw_text)
+            profile = agent.bootstrap_profile(raw_text, images=images)
         
         console.print(f"[info]Saving generated profile to {output_file}...[/info]")
-        write_yaml(profile.model_dump(exclude_none=True, by_alias=True), output_file)
+        dumped_data = profile.model_dump(mode="json", exclude_none=True, by_alias=True)
+        # console.print(f"DEBUG: Dumped data keys: {dumped_data.keys()}")
+        write_yaml(dumped_data, output_file)
         console.print(f"[success]Master Profile bootstrapped successfully: {output_file}[/success]")
+        
+    except Exception as e:
+        console.print(f"[error]AI processing failed: {e}[/error]")
+        raise typer.Exit(code=1)
+
+@app.command()
+def update(
+    new_resume_file: Path = typer.Argument(..., help="Path to the new resume file (PDF, Docx, or TXT) to merge"),
+    profile_file: Path = typer.Option(Path("master-profile.yaml"), "--profile", "-p", help="Path to the existing master profile YAML"),
+    model: str = typer.Option("gpt-5.2", "--model", "-m", help="LLM model to use"),
+    api_key: str = typer.Option(None, "--api-key", "-k", help="API Key for the LLM provider"),
+    api_base: str = typer.Option(None, "--api-base", "-b", help="API Base URL"),
+    vision: bool = typer.Option(True, "--vision/--no-vision", help="Use vision for PDFs (better layout understanding)"),
+):
+    """
+    Update an existing master profile by merging content from a new resume file.
+    """
+    if not new_resume_file.exists():
+        console.print(f"[error]New resume file {new_resume_file} not found.[/error]")
+        raise typer.Exit(code=1)
+
+    if not profile_file.exists():
+        console.print(f"[error]Profile file {profile_file} not found. Use 'bootstrap' to create a new profile.[/error]")
+        raise typer.Exit(code=1)
+
+    # 1. Load Current Profile
+    console.print(f"[info]Loading current profile from {profile_file}...[/info]")
+    try:
+        with open(profile_file, "r") as f:
+            current_data = yaml.safe_load(f)
+        current_profile = MasterProfile(**current_data)
+    except Exception as e:
+        console.print(f"[error]Failed to validate existing profile: {e}[/error]")
+        raise typer.Exit(code=1)
+
+    # 2. Extract Text from New File
+    console.print(f"[info]Extracting text from {new_resume_file}...[/info]")
+    try:
+        raw_text = extract_text_from_file(new_resume_file)
+    except Exception as e:
+        console.print(f"[error]Failed to extract text: {e}[/error]")
+        raise typer.Exit(code=1)
+
+    images = None
+    if new_resume_file.suffix.lower() == ".pdf" and vision:
+        try:
+            from resume_mate.utils.vision import pdf_to_base64_images
+            with console.status("[bold green]Converting PDF to images for Vision analysis...[/bold green]"):
+                images = pdf_to_base64_images(new_resume_file)
+            console.print(f"[info]Generated {len(images)} images from PDF.[/info]")
+        except ImportError:
+            console.print("[warning]PyMuPDF not installed. Skipping vision.[/warning]")
+        except Exception as e:
+            console.print(f"[warning]Failed to convert PDF to images: {e}. Falling back to text-only.[/warning]")
+
+    # 3. Initialize Agent & Merge
+    agent = ResumeAgent(model_name=model, api_key=api_key, api_base=api_base)
+    
+    try:
+        with console.status("[bold green]Merging new data into Master Profile...[/bold green]"):
+            merged_profile = agent.merge_profile(current_profile, raw_text, images=images)
+        
+        # 4. Show Diff
+        old_yaml = yaml.dump(current_profile.model_dump(mode="json", exclude_none=True, by_alias=True), sort_keys=False)
+        new_yaml = yaml.dump(merged_profile.model_dump(mode="json", exclude_none=True, by_alias=True), sort_keys=False)
+        
+        console.print("\n[bold cyan]=== Proposed Changes ===[/bold cyan]\n")
+        print_yaml_diff(old_yaml, new_yaml)
+        
+        # 5. Confirm & Save
+        if Confirm.ask("\nDo you want to apply these changes?"):
+            write_yaml(merged_profile.model_dump(mode="json", exclude_none=True, by_alias=True), profile_file)
+            console.print(f"[success]Profile updated successfully: {profile_file}[/success]")
+        else:
+            console.print("[warning]Update cancelled. No changes made.[/warning]")
         
     except Exception as e:
         console.print(f"[error]AI processing failed: {e}[/error]")
@@ -213,7 +307,7 @@ def tailor(
     profile_file: Path = typer.Option(Path("master-profile.yaml"), "--input", "-i", help="Path to the master profile YAML"),
     theme: str = typer.Option("standard", "--theme", "-t", help="Theme to use"),
     output: Path = typer.Option(Path("output/tailored_resume.pdf"), "--output", "-o", help="Output filename"),
-    model: str = typer.Option("gpt-4o", "--model", "-m", help="LLM model to use (e.g., gpt-4o, claude-3-5-sonnet)"),
+    model: str = typer.Option("gpt-5.2", "--model", "-m", help="LLM model to use (e.g., gpt-5.2, claude-3-5-sonnet)"),
     api_key: str = typer.Option(None, "--api-key", "-k", help="API Key for the LLM provider"),
     api_base: str = typer.Option(None, "--api-base", "-b", help="API Base URL (for proxies or Ollama)"),
 ):
@@ -267,7 +361,7 @@ def tailor(
     # 6. Save Tailored YAML (for inspection)
     yaml_output = output.with_suffix(".yaml")
     console.print(f"[info]Saving tailored profile data to {yaml_output}...[/info]")
-    write_yaml(tailored_profile.model_dump(exclude_none=True, by_alias=True), yaml_output)
+    write_yaml(tailored_profile.model_dump(mode="json", exclude_none=True, by_alias=True), yaml_output)
 
     # 7. Render PDF
     _render_pdf(tailored_profile, theme, output)
@@ -279,7 +373,7 @@ def add(
     entity_type: str = typer.Argument(..., help="Type of entry to add (work, project, education, skill)"),
     description: str = typer.Argument(..., help="Natural language description of the experience or project"),
     profile_file: Path = typer.Option(Path("master-profile.yaml"), "--input", "-i", help="Path to the master profile YAML"),
-    model: str = typer.Option("gpt-4o", "--model", "-m", help="LLM model to use"),
+    model: str = typer.Option("gpt-5.2", "--model", "-m", help="LLM model to use"),
     api_key: str = typer.Option(None, "--api-key", "-k", help="API Key"),
     api_base: str = typer.Option(None, "--api-base", "-b", help="API Base URL"),
 ):
@@ -330,7 +424,7 @@ def add(
             raise typer.Exit(code=1)
 
         # Save back to YAML
-        write_yaml(profile.model_dump(exclude_none=True, by_alias=True), profile_file)
+        write_yaml(profile.model_dump(mode="json", exclude_none=True, by_alias=True), profile_file)
         console.print(f"[success]Successfully added {entity_type} to {profile_file}[/success]")
 
     except Exception as e:
@@ -340,7 +434,7 @@ def add(
 @app.command()
 def suggest(
     profile_file: Path = typer.Option(Path("master-profile.yaml"), "--input", "-i", help="Path to the master profile YAML"),
-    model: str = typer.Option("gpt-4o", "--model", "-m", help="LLM model to use"),
+    model: str = typer.Option("gpt-5.2", "--model", "-m", help="LLM model to use"),
     api_key: str = typer.Option(None, "--api-key", "-k"),
     api_base: str = typer.Option(None, "--api-base", "-b"),
 ):

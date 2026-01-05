@@ -331,6 +331,7 @@ def tailor(
     model: str = typer.Option("gpt-5.2", "--model", "-m", help="LLM model to use (e.g., gpt-5.2, claude-3-5-sonnet)"),
     api_key: str = typer.Option(None, "--api-key", "-k", help="API Key for the LLM provider"),
     api_base: str = typer.Option(None, "--api-base", "-b", help="API Base URL (for proxies or Ollama)"),
+    language: str = typer.Option("English", "--language", "-l", help="Target language for the resume"),
 ):
     """
     Tailor the resume to a specific job description using AI.
@@ -372,8 +373,8 @@ def tailor(
         console.print("[info]Job Analysis Complete. Key terms extracted.[/info]")
         console.print(f"   [dim]Keywords: {', '.join(analysis.get('keywords', [])[:5])}...[/dim]")
 
-        with console.status("[bold green]Tailoring Resume Content... (This may take a minute)[/bold green]"):
-            tailored_profile = agent.tailor_profile(profile, analysis)
+        with console.status(f"[bold green]Tailoring Resume Content ({language})... (This may take a minute)[/bold green]"):
+            tailored_profile = agent.tailor_profile(profile, analysis, language=language)
         
     except Exception as e:
         console.print(f"[error]AI processing failed: {e}[/error]")

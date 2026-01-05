@@ -15,7 +15,21 @@
     --font-stack: 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
 }
 
+@page {
+    size: A4;
+    margin: 0;
+}
+
+* {
+    box-sizing: border-box;
+}
+
 /* --- BASE STYLES --- */
+html {
+    background-color: var(--drac-bg);
+    height: 100%;
+}
+
 body {
     background-color: var(--drac-bg);
     color: var(--drac-fg);
@@ -24,6 +38,7 @@ body {
     line-height: 1.6;
     margin: 0;
     padding: 40px;
+    min-height: 100%;
 }
 
 .terminal-container {
@@ -88,43 +103,4 @@ li::before {
 }
 @keyframes blink { 50% { opacity: 0; } }
 
-/* --- PRINT STYLES (RECRUITER SAFE MODE) --- */
-@media print {
-    body { 
-        background-color: white; 
-        color: #282a36; /* Dark text for contrast */
-        padding: 0; 
-        font-size: 11pt;
-    }
-    .terminal-container { width: 100%; max-width: none; }
-    .output-block { border-left: 2px solid #ccc; margin-left: 0; padding-left: 0; }
-    
-    /* Hide Terminal Elements */
-    .prompt-user, .prompt-at, .prompt-path, .cmd, .args, .cursor, li::before { display: none; } 
-    
-    /* Restore Standard List Bullets */
-    ul { list-style: disc; padding-left: 20px; }
-    
-    a { color: #000; border-bottom: 1px solid #000; }
-    
-    /* Convert Code Colors to standard bold/black for readability on paper */
-    .keyword, .class-name, .function, .string, .number { 
-        color: #000; 
-        font-weight: bold; 
-    }
-    .comment { color: #666; }
 
-    /* Headers injection */
-    .input-line::after {
-        content: attr(data-print-header);
-        font-size: 16pt;
-        font-weight: bold;
-        border-bottom: 2px solid #000;
-        display: block;
-        width: 100%;
-        margin-top: 20px;
-        margin-bottom: 10px;
-        text-transform: uppercase;
-    }
-    .input-line { display: block; margin-top: 10px; margin-bottom: 5px; }
-}

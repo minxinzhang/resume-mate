@@ -85,11 +85,16 @@ li {
     margin-top: 0.5rem;
 }
 
+@page {
+    size: A4;
+    margin: 0;
+}
+
 /* Print Styles */
 @media print {
     body {
         max-width: 100%;
-        padding: 0;
+        padding: 1cm;
     }
     
     a {

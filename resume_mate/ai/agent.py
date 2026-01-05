@@ -215,7 +215,7 @@ class ResumeAgent:
             json_mode=True
         )
 
-    def tailor_profile(self, profile: MasterProfile, jd_analysis: dict[str, Any]) -> MasterProfile:
+    def tailor_profile(self, profile: MasterProfile, jd_analysis: dict[str, Any], language: str = "English") -> MasterProfile:
         """
         Tailors the Master Profile to fit the analyzed job description.
         Currently focuses on rewriting the summary and filtering/rewriting work experience.
@@ -238,6 +238,8 @@ class ResumeAgent:
 
         Candidate Master Profile:
         {json.dumps(profile_dict, indent=2)}
+        
+        Target Language: {language}
 
         Instructions:
         1. **Summary:** Rewrite the candidate's summary (`basics.summary`) to align with the Role Mission and Keywords. Keep it professional and under 4 lines.
@@ -248,6 +250,7 @@ class ResumeAgent:
            - Keep the original `company`, `position`, `startDate`, `endDate`.
            - You may reorder the highlights.
         3. **Skills:** Select and prioritize the `skills` list to match the JD's technical requirements.
+        4. **Language:** Ensure the entire resume (summary, bullets, etc.) is written in {language}. If the JD is in a different language, TRANSLATE relevant parts to {language}.
 
         Return the tailored profile as a JSON object matching the structure of the input Master Profile. 
         ENSURE all fields required by the schema (like 'basics', 'work', 'education', 'skills') are present and correctly formatted.

@@ -24,7 +24,8 @@ class PdfGenerator:
                 path=output_path,
                 format="A4",
                 print_background=True,
-                margin={"top": "1cm", "right": "1cm", "bottom": "1cm", "left": "1cm"}
+                prefer_css_page_size=True,
+                margin={"top": "0", "right": "0", "bottom": "0", "left": "0"}
             )
             
             browser.close()

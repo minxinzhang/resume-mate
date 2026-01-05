@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ basics.name }}_Resume_Dracula</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="terminal-container">
+
+    <!-- Header / Init -->
+    <div class="input-line">
+        <span class="prompt-user">{{ basics.name | lower | replace(' ', '') }}</span><span class="prompt-at">@</span><span class="prompt-path">~</span>
+        <span class="cmd">./whoami.py</span>
+    </div>
+    
+    <div class="output-block">
+        <span class="keyword">return</span> <span class="class-name">Candidate</span>(<br>
+        &nbsp;&nbsp;user=<span class="string">"{{ basics.name }}"</span>, 
+        role=<span class="string">"{{ basics.label }}"</span>, 
+        {% if basics.location %}loc=<span class="string">"{{ basics.location.city }}, {{ basics.location.region }}"</span>,{% endif %}<br>
+        &nbsp;&nbsp;contact=<span class="string">"{{ basics.email }}{% if basics.phone %} | {{ basics.phone }}{% endif %}"</span>,<br>
+        &nbsp;&nbsp;links=[
+        {%- if basics.url %} <span class="string">"<a href='{{ basics.url }}'>Website</a>"</span>,{% endif -%}
+        {%- if basics.profiles -%}
+        {%- for profile in basics.profiles %}
+        <span class="string">"<a href='{{ profile.url }}'>{{ profile.network }}</a>"</span>{% if not loop.last %}, {% endif %}
+        {%- endfor -%}
+        {%- endif -%}
+        ]<br>
+        )<br>
+        {% if basics.summary %}
+        <span class="comment"># {{ basics.summary }}</span>
+        {% endif %}
+    </div>
+
+    <!-- Experience -->
+    {% if work %}
+    <div class="input-line" data-print-header="Experience">
+        <span class="prompt-user">{{ basics.name | lower | replace(' ', '') }}</span><span class="prompt-at">@</span><span class="prompt-path">~/work</span>
+        <span class="cmd">cat</span> <span class="args">experience.json</span>
+    </div>
+
+    <div class="output-block">
+        {% for job in work %}
+        <span class="keyword">const</span> <span class="function">{{ job.name | replace(' ', '') | replace('.', '') | replace(',', '') }}</span> = {<br>
+        &nbsp;&nbsp;role: <span class="string">"{{ job.position }}"</span>,<br>
+        &nbsp;&nbsp;dates: <span class="string">"{{ job.startDate }} - {{ job.endDate if job.endDate else 'Present' }}"</span>,<br>
+        &nbsp;&nbsp;achievements: [<br>
+        {% for highlight in job.highlights %}
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="string">"{{ highlight }}"</span>{% if not loop.last %},{% endif %}<br>
+        {% endfor %}
+        &nbsp;&nbsp;]<br>
+        }{% if not loop.last %}<br><br>{% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Skills -->
+    {% if skills %}
+    <div class="input-line" data-print-header="Technical Skills">
+        <span class="prompt-user">{{ basics.name | lower | replace(' ', '') }}</span><span class="prompt-at">@</span><span class="prompt-path">~/skills</span>
+        <span class="cmd">ls</span> <span class="args">-la</span>
+    </div>
+
+    <div class="output-block">
+        {% for skill in skills %}
+        <span class="drac-pink">➜</span> <span class="function">{{ skill.name }}</span> <span class="comment">({{ skill.keywords | join(', ') }})</span><br>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Projects -->
+    {% if projects %}
+    <div class="input-line" data-print-header="Projects">
+        <span class="prompt-user">{{ basics.name | lower | replace(' ', '') }}</span><span class="prompt-at">@</span><span class="prompt-path">~/projects</span>
+        <span class="cmd">git</span> <span class="args">log --oneline</span>
+    </div>
+
+    <div class="output-block">
+        {% for project in projects %}
+        <span class="number">c0ff{{ loop.index }}</span> <span class="keyword">HEAD</span> <span class="string">"{{ project.name }}"</span> 
+        {% if project.techStack %}
+        <span class="comment">({{ project.techStack | join(', ') }})</span>
+        {% endif %}
+        <br>
+        {% if project.description %}
+        &nbsp;&nbsp;<span class="comment"># {{ project.description }}</span><br>
+        {% endif %}
+        {% if project.highlights %}
+        {% for highlight in project.highlights %}
+        &nbsp;&nbsp;<span class="comment"># - {{ highlight }}</span><br>
+        {% endfor %}
+        {% endif %}
+        <br>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Education -->
+    {% if education %}
+    <div class="input-line" data-print-header="Education">
+        <span class="prompt-user">{{ basics.name | lower | replace(' ', '') }}</span><span class="prompt-at">@</span><span class="prompt-path">~/education</span>
+        <span class="cmd">cat</span> <span class="args">degrees.txt</span>
+    </div>
+
+    <div class="output-block">
+        {% for edu in education %}
+        <span class="function">{{ edu.institution }}</span><br>
+        <span class="string">{{ edu.studyType }} in {{ edu.area }}</span><br>
+        <span class="comment">{{ edu.startDate }} - {{ edu.endDate if edu.endDate else 'Present' }}</span><br>
+        <br>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="input-line">
+        <span class="prompt-user">{{ basics.name | lower | replace(' ', '') }}</span><span class="prompt-at">@</span><span class="prompt-path">~</span>
+        <span class="cursor"></span>
+    </div>
+
+</div>
+
+</body>
+</html>

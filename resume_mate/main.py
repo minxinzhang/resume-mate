@@ -2,6 +2,7 @@ import typer
 from pathlib import Path
 import shutil
 import yaml
+import webbrowser
 from rich.prompt import Confirm
 import os
 
@@ -116,6 +117,54 @@ def build(
 
     _render_pdf(profile, theme, output)
     console.print(f"[success]Resume built successfully: {output}[/success]")
+
+@app.command()
+def preview(
+    profile_file: Path = typer.Option(Path("master-profile.yaml"), "--input", "-i", help="Path to the master profile YAML"),
+    theme: str = typer.Option("standard", "--theme", "-t", help="Theme to use"),
+    output: Path = typer.Option(Path("output/preview.html"), "--output", "-o", help="Output HTML filename"),
+):
+    """
+    Render the resume to HTML and open it in the default browser.
+    """
+    if not profile_file.exists():
+        console.print(f"[error]Profile file {profile_file} not found.[/error]")
+        raise typer.Exit(code=1)
+
+    console.print(f"[info]Loading profile from {profile_file}...[/info]")
+    
+    try:
+        with open(profile_file, "r") as f:
+            data = yaml.safe_load(f)
+        profile = MasterProfile(**data)
+    except Exception as e:
+        console.print(f"[error]Failed to validate profile: {e}[/error]")
+        raise typer.Exit(code=1)
+
+    console.print(f"[info]Rendering resume using theme '{theme}'...[/info]")
+    try:
+        renderer = TemplateRenderer(theme=theme)
+        html_content = renderer.render(profile)
+    except Exception as e:
+        console.print(f"[error]Failed to render template: {e}[/error]")
+        raise typer.Exit(code=1)
+    
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(html_content)
+    console.print(f"[success]HTML generated at {output}[/success]")
+
+    # Copy CSS for correct styling
+    css_source = renderer.theme_path / "styles.css"
+    if css_source.exists():
+        css_dest = output.parent / "styles.css"
+        shutil.copy(css_source, css_dest)
+        console.print(f"[info]Copied styles.css to {css_dest}[/info]")
+    else:
+        console.print(f"[warning]CSS file not found at {css_source}. Preview might look unstyled.[/warning]")
+
+    console.print(f"[info]Opening {output} in browser...[/info]")
+    webbrowser.open(f"file://{output.resolve()}")
+
 
 @app.command()
 def bootstrap(

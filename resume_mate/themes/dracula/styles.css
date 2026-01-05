@@ -1,0 +1,130 @@
+/* --- DRACULA THEME PALETTE --- */
+:root {
+    --drac-bg:      #282a36; /* Background */
+    --drac-curr:    #44475a; /* Current Line */
+    --drac-fg:      #f8f8f2; /* Foreground */
+    --drac-comment: #6272a4; /* Comment */
+    --drac-cyan:    #8be9fd;
+    --drac-green:   #50fa7b;
+    --drac-orange:  #ffb86c;
+    --drac-pink:    #ff79c6;
+    --drac-purple:  #bd93f9;
+    --drac-red:     #ff5555;
+    --drac-yellow:  #f1fa8c;
+    
+    --font-stack: 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+}
+
+/* --- BASE STYLES --- */
+body {
+    background-color: var(--drac-bg);
+    color: var(--drac-fg);
+    font-family: var(--font-stack);
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0;
+    padding: 40px;
+}
+
+.terminal-container {
+    max-width: 850px;
+    margin: 0 auto;
+}
+
+/* --- TYPOGRAPHY --- */
+a { color: var(--drac-cyan); text-decoration: none; border-bottom: 1px dotted var(--drac-cyan); }
+a:hover { background-color: var(--drac-cyan); color: var(--drac-bg); }
+
+h1, h2, h3 { margin: 0; font-weight: normal; }
+
+ul { list-style: none; padding-left: 1.5rem; margin-top: 0.5rem; }
+li::before { 
+    content: "➜"; 
+    color: var(--drac-pink); 
+    margin-right: 10px; 
+    font-size: 0.9em; 
+}
+
+/* --- TERMINAL COMPONENTS --- */
+.input-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+/* ZSH Style Prompt: user @host in purple, path in pink */
+.prompt-user { color: var(--drac-purple); font-weight: bold; }
+.prompt-at { color: var(--drac-fg); }
+.prompt-path { color: var(--drac-pink); font-weight: bold; }
+
+.cmd { color: var(--drac-green); font-weight: bold; }
+.args { color: var(--drac-yellow); }
+
+.output-block {
+    border-left: 2px solid var(--drac-curr);
+    padding-left: 15px;
+    margin-left: 5px;
+    margin-bottom: 1rem;
+}
+
+/* Code Highlighting Mappings */
+.comment    { color: var(--drac-comment); font-style: italic; }
+.keyword, .drac-pink { color: var(--drac-pink); }   /* def, class, import */
+.class-name { color: var(--drac-cyan); font-style: italic; } /* MyClass */
+.function   { color: var(--drac-green); }  /* myFunction */
+.string     { color: var(--drac-yellow); } /* "Hello" */
+.number     { color: var(--drac-purple); } /* 123 */
+
+/* --- BLINKING CURSOR --- */
+.cursor {
+    display: inline-block;
+    width: 10px;
+    height: 18px;
+    background-color: var(--drac-fg);
+    animation: blink 1s step-end infinite;
+    vertical-align: middle;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* --- PRINT STYLES (RECRUITER SAFE MODE) --- */
+@media print {
+    body { 
+        background-color: white; 
+        color: #282a36; /* Dark text for contrast */
+        padding: 0; 
+        font-size: 11pt;
+    }
+    .terminal-container { width: 100%; max-width: none; }
+    .output-block { border-left: 2px solid #ccc; margin-left: 0; padding-left: 0; }
+    
+    /* Hide Terminal Elements */
+    .prompt-user, .prompt-at, .prompt-path, .cmd, .args, .cursor, li::before { display: none; } 
+    
+    /* Restore Standard List Bullets */
+    ul { list-style: disc; padding-left: 20px; }
+    
+    a { color: #000; border-bottom: 1px solid #000; }
+    
+    /* Convert Code Colors to standard bold/black for readability on paper */
+    .keyword, .class-name, .function, .string, .number { 
+        color: #000; 
+        font-weight: bold; 
+    }
+    .comment { color: #666; }
+
+    /* Headers injection */
+    .input-line::after {
+        content: attr(data-print-header);
+        font-size: 16pt;
+        font-weight: bold;
+        border-bottom: 2px solid #000;
+        display: block;
+        width: 100%;
+        margin-top: 20px;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+    }
+    .input-line { display: block; margin-top: 10px; margin-bottom: 5px; }
+}

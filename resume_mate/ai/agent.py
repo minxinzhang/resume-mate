@@ -1,7 +1,10 @@
 import json
+import os
+from pathlib import Path
 from typing import Any, cast
 
 import litellm
+from dotenv import load_dotenv
 from litellm import Choices, ModelResponse
 from rich.console import Console
 
@@ -229,3 +232,21 @@ class ResumeAgent:
         # Validate and return as MasterProfile object
         # We might need to handle potential schema mismatches, but Pydantic is good at that.
         return MasterProfile(**tailored_data)
+
+
+if __name__ == "__main__":
+    load_dotenv(".env.local")
+
+    agent = ResumeAgent(
+        model_name=os.getenv("LITELLM_MODEL_NAME", "gpt-4o"),
+        api_key=os.getenv("LITELLM_API_KEY"),
+        api_base=os.getenv("LITELLM_PROXY_BASE_URL"),
+    )
+    
+    jd_text = "We are looking for a Senior Software Engineer with experience in Python, FastAPI, and cloud technologies."
+    
+    try:
+        jd_analysis = agent.analyze_job_description(jd_text)
+        console.print(jd_analysis)
+    except Exception as e:
+        console.print(f"[bold red]Failed to run analysis:[/bold red] {e}")

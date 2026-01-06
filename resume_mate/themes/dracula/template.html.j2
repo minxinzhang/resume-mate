@@ -22,10 +22,9 @@
         {% if basics.location %}loc=<span class="string">"{{ basics.location.city }}, {{ basics.location.region }}"</span>,{% endif %}<br>
         &nbsp;&nbsp;contact=<span class="string">"{{ basics.email }}{% if basics.phone %} | {{ basics.phone }}{% endif %}"</span>,<br>
         &nbsp;&nbsp;links=[
-        {%- if basics.url %} <span class="string">"<a href='{{ basics.url }}'>Website</a>"</span>,{% endif -%}
         {%- if basics.profiles -%}
         {%- for profile in basics.profiles %}
-        <span class="string">"<a href='{{ profile.url }}'>{{ profile.network }}</a>"</span>{% if not loop.last %}, {% endif %}
+        <span class="string">"{% if profile.url %}<a href='{{ profile.url }}'>{{ profile.network }}</a>{% else %}{{ profile.network }}: {{ profile.username }}{% endif %}"</span>{% if not loop.last %}, {% endif %}
         {%- endfor -%}
         {%- endif -%}
         ]<br>
@@ -34,6 +33,20 @@
         <span class="comment"># {{ basics.summary }}</span>
         {% endif %}
     </div>
+
+    <!-- Skills -->
+    {% if skills %}
+    <div class="input-line" data-print-header="Technical Skills">
+        <span class="prompt-user">{{ basics.name | lower | replace(' ', '') }}</span><span class="prompt-at">@</span><span class="prompt-path">~/skills</span>
+        <span class="cmd">ls</span> <span class="args">-la</span>
+    </div>
+
+    <div class="output-block">
+        {% for skill in skills %}
+        <span class="drac-pink">➜</span> <span class="function">{{ skill.name }}</span> <span class="comment">({{ skill.keywords | join(', ') }})</span><br>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <!-- Experience -->
     {% if work %}
@@ -57,41 +70,30 @@
     </div>
     {% endif %}
 
-    <!-- Skills -->
-    {% if skills %}
-    <div class="input-line" data-print-header="Technical Skills">
-        <span class="prompt-user">{{ basics.name | lower | replace(' ', '') }}</span><span class="prompt-at">@</span><span class="prompt-path">~/skills</span>
-        <span class="cmd">ls</span> <span class="args">-la</span>
-    </div>
-
-    <div class="output-block">
-        {% for skill in skills %}
-        <span class="drac-pink">➜</span> <span class="function">{{ skill.name }}</span> <span class="comment">({{ skill.keywords | join(', ') }})</span><br>
-        {% endfor %}
-    </div>
-    {% endif %}
-
     <!-- Projects -->
     {% if projects %}
     <div class="input-line" data-print-header="Projects">
         <span class="prompt-user">{{ basics.name | lower | replace(' ', '') }}</span><span class="prompt-at">@</span><span class="prompt-path">~/projects</span>
-        <span class="cmd">git</span> <span class="args">log --oneline</span>
+        <span class="cmd">git</span> <span class="args">log --stat -n {{ projects|length }}</span>
     </div>
 
     <div class="output-block">
         {% for project in projects %}
-        <span class="number">c0ff{{ loop.index }}</span> <span class="keyword">HEAD</span> <span class="string">"{{ project.name }}"</span> 
-        {% if project.techStack %}
-        <span class="comment">({{ project.techStack | join(', ') }})</span>
+        <span class="drac-orange">commit {{ "a1b2c3d" ~ loop.index }}</span>{% if project.startDate %} <span class="comment">({{ project.startDate }}{% if project.endDate %} - {{ project.endDate }}{% endif %})</span>{% endif %}<br>
+        <br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="drac-yellow" style="font-weight:bold;">{{ project.name }}</span><br>
+        {% if project.description %}
+        &nbsp;&nbsp;&nbsp;&nbsp;{{ project.description }}<br>
         {% endif %}
         <br>
-        {% if project.description %}
-        &nbsp;&nbsp;<span class="comment"># {{ project.description }}</span><br>
-        {% endif %}
         {% if project.highlights %}
         {% for highlight in project.highlights %}
-        &nbsp;&nbsp;<span class="comment"># - {{ highlight }}</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="drac-green">+</span> {{ highlight }}<br>
         {% endfor %}
+        {% endif %}
+        <br>
+        {% if project.techStack %}
+        &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">Stack: {{ project.techStack | join(', ') }}</span><br>
         {% endif %}
         <br>
         {% endfor %}

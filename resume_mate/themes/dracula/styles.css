@@ -86,11 +86,20 @@ li::before {
 
 /* Code Highlighting Mappings */
 .comment    { color: var(--drac-comment); font-style: italic; }
-.keyword, .drac-pink { color: var(--drac-pink); }   /* def, class, import */
-.class-name { color: var(--drac-cyan); font-style: italic; } /* MyClass */
-.function   { color: var(--drac-green); }  /* myFunction */
-.string     { color: var(--drac-yellow); } /* "Hello" */
-.number     { color: var(--drac-purple); } /* 123 */
+.keyword    { color: var(--drac-pink); }
+.class-name { color: var(--drac-cyan); font-style: italic; }
+.function   { color: var(--drac-green); }
+.string     { color: var(--drac-yellow); }
+.number     { color: var(--drac-purple); }
+
+/* Utility Color Classes */
+.drac-pink   { color: var(--drac-pink); }
+.drac-purple { color: var(--drac-purple); }
+.drac-green  { color: var(--drac-green); }
+.drac-yellow { color: var(--drac-yellow); }
+.drac-orange { color: var(--drac-orange); }
+.drac-cyan   { color: var(--drac-cyan); }
+.drac-red    { color: var(--drac-red); }
 
 /* --- BLINKING CURSOR --- */
 .cursor {
@@ -102,5 +111,3 @@ li::before {
     vertical-align: middle;
 }
 @keyframes blink { 50% { opacity: 0; } }
-
-
